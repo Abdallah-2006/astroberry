@@ -8,6 +8,7 @@
   <!-- Google Font (external link) -->
   <link rel="preconnect" href="https://fonts.googleapis.com/">
   <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@700;800&display=swap" rel="stylesheet">
   <link href="./Astroberry_files/css2" rel="stylesheet">
   <style>
     :root {
@@ -88,13 +89,20 @@
     }
 
     .brand-name {
-      font-family: var(--pixel);
-      font-size: clamp(11px, 1.65vw, 16px);
-      line-height: 1.7;
+      font-family: "Silkscreen", var(--pixel), monospace;
+      font-size: clamp(22px, 3.4vw, 32px);
+      font-weight: 800;
+      line-height: 1.35;
       letter-spacing: 1px;
-      color: #ffe2a8;
-      text-shadow: 3px 3px 0 #713b2c, 5px 5px 0 rgba(0, 0, 0, 0.45);
+      color: #e52b2f;
+      -webkit-text-stroke: 0.6px #8f171e;
+      text-shadow:
+        2px 2px 0 #8f171e,
+        4px 4px 0 #3d1018,
+        6px 6px 0 rgba(0, 0, 0, 0.5);
       white-space: nowrap;
+      -webkit-font-smoothing: none;
+      font-smooth: never;
     }
 
     .topbar[hidden] {
