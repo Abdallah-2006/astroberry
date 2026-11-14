@@ -1,10 +1,17 @@
+import { useEffect } from "react";
 import Portrait from "./Portrait";
 import PixelIcon from "./PixelIcon";
 import { PORTRAITS } from "../data/portraits";
+import { playVoiceStart } from "../lib/audio";
 
 export default function BriefingModal({ day, onBegin }) {
   const { briefing } = day;
   const speaker = PORTRAITS[briefing.speaker] ?? PORTRAITS.layla;
+
+  // Every daily briefing opens with PIP's walkie.
+  useEffect(() => {
+    playVoiceStart();
+  }, [day.day]);
 
   return (
     <div className="vn-layer" role="dialog" aria-modal="true" aria-labelledby="briefing-title">

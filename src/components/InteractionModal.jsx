@@ -4,6 +4,7 @@ import PixelIcon from "./PixelIcon";
 import { PORTRAITS } from "../data/portraits";
 import { canAfford } from "../logic/resources";
 import { COMMANDER } from "../logic/profile";
+import { playVoiceStart } from "../lib/audio";
 
 const COST_ICONS = {
   spareParts: "wrench",
@@ -61,8 +62,21 @@ function CostPips({ cost }) {
 }
 
 export default function InteractionModal({ content, resources, onChoose, onGoto, onClose }) {
-  const [lineIndex, setLineIndex] = useState(0);
-  useEffect(() => setLineIndex(0), [content?.targetId, content?.title, content?.result]);
+  const lines = content.body ?? [];
+  const transcriptKey = `${content?.targetId ?? ""}|${content?.title ?? ""}|${content?.chosenId ?? ""}|${content?.result ? "result" : "lines"}`;
+  const [lineState, setLineState] = useState({ key: transcriptKey, index: 0 });
+  const lineIndex =
+    lineState.key === transcriptKey
+      ? Math.min(lineState.index, Math.max(0, lines.length - 1))
+      : 0;
+  const goToLine = (next) => setLineState({ key: transcriptKey, index: next });
+
+  // Every new transcript beat gets the radio squelch, including each "Next"
+  // and each new bubble in the same session.
+  useEffect(() => {
+    playVoiceStart();
+  }, [transcriptKey, lineIndex]);
+
   useEffect(() => {
     const onKeyDown = (event) => {
       if (event.code === "Escape") onClose();
@@ -77,8 +91,6 @@ export default function InteractionModal({ content, resources, onChoose, onGoto,
       ? content.choices.find((choice) => choice.id === content.chosenId)
       : null;
   const resultText = content.result ?? resolved?.result ?? null;
-  const lines = content.body ?? [];
-  const hasMoreLines = !resultText && lineIndex < lines.length - 1;
   const dialogueFinished = resultText || lines.length === 0 || lineIndex >= lines.length - 1;
   const showChoices = content.choices && !resultText && dialogueFinished;
 
@@ -154,7 +166,7 @@ export default function InteractionModal({ content, resources, onChoose, onGoto,
                   : "Incoming crew transmission"}
             </span>
             {!resultText && !dialogueFinished && (
-              <button type="button" className="primary-button voice-next" onClick={() => setLineIndex((i) => Math.min(i + 1, lines.length - 1))}>
+              <button type="button" className="primary-button voice-next" onClick={() => goToLine(Math.min(lineIndex + 1, lines.length - 1))}>
                 Next transmission →
               </button>
             )}

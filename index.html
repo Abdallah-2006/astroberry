@@ -7,7 +7,7 @@
   <!-- Google Font (external link) -->
   <link rel="preconnect" href="https://fonts.googleapis.com/">
   <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
-  <link href="./AstroBarry_files/css2" rel="stylesheet">
+  <link href="./AstroBarry_files/css2.css" rel="stylesheet">
   <style>
     :root {
       color-scheme: dark;
@@ -905,6 +905,56 @@
     }
 
     /* ---------- cinematic briefing screens ---------- */
+    #screen-boot.active {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: #030303;
+      color: #fff;
+      font-family: "VT323", "Share Tech Mono", "IBM Plex Mono", ui-monospace, monospace;
+      cursor: pointer;
+    }
+
+    .boot-mark {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #fff;
+      opacity: .55;
+      box-shadow: 0 0 18px rgba(255, 255, 255, .7);
+      animation: boot-pulse 1.15s steps(2) infinite;
+    }
+
+    .boot-hint {
+      margin: 0;
+      font-size: clamp(11px, 1.1vw, 14px);
+      letter-spacing: .34em;
+      text-transform: uppercase;
+      opacity: .4;
+    }
+
+    @keyframes boot-pulse {
+      50% {
+        opacity: .14;
+      }
+    }
+
+    .brief.active {
+      animation: brief-in .55s ease both;
+    }
+
+    @keyframes brief-in {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
     .brief.active {
       position: fixed;
       inset: 0;
@@ -1018,7 +1068,13 @@
       }
     }
   </style>
-<script src="./AstroBarry_files/three.min.js"></script></head>
+<script src="./AstroBarry_files/three.min.js"></script>
+<script type="module">
+  // Vite hashes these on build; the landing script reads them by name.
+  import countdownBefore from './src/assets/sounds/countdown-before.mp3';
+  import rocket from './src/assets/sounds/rocket.mp3';
+  window.MARS_LANDING_SOUNDS = { countdown: countdownBefore, rocket };
+</script></head>
 
 <body>
 
@@ -1157,6 +1213,11 @@
         </div>
         <button id="mapConfirm" class="btn btn-primary" type="button" disabled="">Continue</button>
       </div>
+    </section>
+
+    <section id="screen-boot" class="screen" aria-label="Mission start">
+      <span class="boot-mark" aria-hidden="true"></span>
+      <p class="boot-hint">System wake sequence</p>
     </section>
 
     <section id="screen-brief1" class="screen brief" aria-label="Mission briefing">
@@ -1447,7 +1508,7 @@
          t:'h' = heading (big, slower)   t:'p' = body text
          ===================================================================== */
       var TYPING_CHAR_DELAY_MS = 28, TYPING_HEADING_DELAY_MS = 60, TYPING_SECTION_PAUSE_MS = 500;
-      var TYPING_VOLUME = 0.5;        // 0 to 1
+      var TYPING_VOLUME = 0.14;       // 0 to 1
       var TYPING_SOUND_URL = '';      // optional: link to your own short click sound (.mp3/.wav). Empty = built-in synth sound
       var DEFAULTS = { name: '', map: '' };   // player configuration defaults ('' / 'jezero' / 'meridiani')
       var FIRST_BRIEFING_CONTENT = [
@@ -1522,26 +1583,125 @@
         var p = load(), url = GAME_REDIRECT_URL;
         if (!p.name || !p.map) { show('name'); return; }
         if (!url) { toast('Add your game link to GAME_REDIRECT_URL in the script.'); return; }
+        // Hand the rocket bed to the game across the page split, so the descent
+        // keeps its soundtrack instead of restarting from zero.
+        var rocket = landingAudio.rocket;
+        try { if (rocket) sessionStorage.setItem('marsRocketOffset', String(rocket.currentTime || 0)); } catch (e) { }
+        stopLandingAudio(180);
         if (SEND_DATA_IN_URL) url += (url.indexOf('?') < 0 ? '?' : '&') + 'name=' + encodeURIComponent(p.name) + '&map=' + encodeURIComponent(p.map);
-        window.location.href = url;
+        // Let the short fade finish instead of cutting the bed at navigation.
+        setTimeout(function () { window.location.href = url; }, 220);
       }
 
       /* ---------------- screens ---------------- */
       function show(name) {
         document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('active', s.id === 'screen-' + name); });
         if (name !== 'brief1' && name !== 'brief2') stopTyper();
+        if (name === 'intro' || name === 'name' || name === 'map') stopLandingAudio(450);
         if (name === 'brief1') beginBrief('brief1', FIRST_BRIEFING_CONTENT);
-        if (name === 'brief2') beginBrief('brief2', SECOND_BRIEFING_CONTENT);
+        if (name === 'brief2') { playLandingAudio('rocket', 0.28); beginBrief('brief2', SECOND_BRIEFING_CONTENT); }
         var p = load(), who = $('who');
-        if (name !== 'intro' && p.name) { who.textContent = 'Commander ' + p.name; who.hidden = false; } else who.hidden = true;
+        if (who) {
+          if (name !== 'intro' && p.name) { who.textContent = 'Commander ' + p.name; who.hidden = false; } else who.hidden = true;
+        }
         if (name === 'name') { $('nameInput').value = p.name || $('nameInput').value; setTimeout(function () { $('nameInput').focus(); }, 50); }
         if (name === 'map') {
           if (p.map) choose(p.map); else if (!picked) renderSite();
         }
       }
 
+      /* ---------------- landing audio + boot screen ----------------
+       * Sequence: countdown-before plays over a black boot screen, then a
+       * blank black beat, then brief1 types. Name and map stay silent, and
+       * brief2 starts the rocket bed, which is handed to the game page.
+       */
+      var landingAudio = {}, bootToken = 0, bootTimer = 0, BOOT_LEAD_MS = 1800;
+
+      function getLandingAudio(name) {
+        var urls = window.MARS_LANDING_SOUNDS || {};
+        if (!urls[name]) return null;
+        if (landingAudio[name]) return landingAudio[name];
+        var el = new Audio(urls[name]);
+        el.preload = 'auto';
+        landingAudio[name] = el;
+        return el;
+      }
+
+      function fadeLandingAudio(el, to, ms, done) {
+        var from = el.volume, started = performance.now(), duration = Math.max(1, ms);
+        clearInterval(el._fade);
+        el._fade = setInterval(function () {
+          var t = Math.min(1, (performance.now() - started) / duration);
+          el.volume = Math.min(1, Math.max(0, from + (to - from) * t));
+          if (t >= 1) { clearInterval(el._fade); el._fade = 0; if (done) done(); }
+        }, 40);
+      }
+
+      function playLandingAudio(name, volume) {
+        var el = getLandingAudio(name);
+        if (!el) return null;
+        try { el.pause(); el.currentTime = 0; el.volume = 0; } catch (e) { }
+        var pr = el.play(); if (pr && pr.catch) pr.catch(function () { });
+        fadeLandingAudio(el, volume, 500);
+        return el;
+      }
+
+      function stopLandingAudio(ms) {
+        Object.keys(landingAudio).forEach(function (name) {
+          var el = landingAudio[name];
+          fadeLandingAudio(el, 0, ms || 500, function () { try { el.pause(); } catch (e) { } });
+        });
+      }
+
+      function beginBoot() {
+        bootToken += 1;
+        var token = bootToken;
+        clearTimeout(bootTimer);
+        show('boot');
+
+        var el = getLandingAudio('countdown');
+        if (el) {
+          try {
+            el.pause(); el.currentTime = 0; el.volume = 0;
+            var pr = el.play();
+            if (pr && pr.catch) pr.catch(function (err) {
+              // An extension or another tab can interrupt playback (AbortError).
+              // Retry quietly instead of skipping the countdown.
+              if (err && err.name === 'AbortError') {
+                setTimeout(function () {
+                  if (token !== bootToken) return;
+                  try { el.play(); fadeLandingAudio(el, 0.28, 500); } catch (e) { }
+                }, 300);
+              }
+            });
+            fadeLandingAudio(el, 0.28, 500);
+          } catch (e) { }
+        }
+
+        // The countdown starts first but no longer holds the briefing hostage:
+        // a short lead-in, then the typing begins while the countdown plays
+        // softly underneath and fades when the briefing closes.
+        bootTimer = setTimeout(function () {
+          if (token === bootToken) show('brief1');
+        }, BOOT_LEAD_MS);
+      }
+
+      function skipBoot() {
+        if (!$('screen-boot').classList.contains('active')) return;
+        clearTimeout(bootTimer);
+        bootToken += 1;
+        show('brief1');
+      }
+
+      $('screen-boot').addEventListener('click', skipBoot);
+      document.addEventListener('keydown', function (e) {
+        if ((e.key === 'Enter' || e.key === ' ') && $('screen-boot').classList.contains('active')) {
+          e.preventDefault(); skipBoot();
+        }
+      });
+
       /* ---------------- screen 1 ---------------- */
-      $('playBtn').addEventListener('click', function () { show('brief1'); });
+      $('playBtn').addEventListener('click', function () { audioUnlock(); beginBoot(); });
       $('demoBtn').addEventListener('click', function () {
         if (!DEMO_URL) { toast('Add your demo link to DEMO_URL in the script.'); return; }
         window.open(DEMO_URL, '_blank', 'noopener');
@@ -1636,6 +1796,18 @@
       function audioUnlock() {   // called from a click, so browsers allow sound
         try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (e) { }
       }
+      function uiClick() {
+        if (!actx || actx.state !== 'running') return;
+        var t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+        o.type = 'square';
+        o.frequency.setValueAtTime(720, t);
+        o.frequency.exponentialRampToValueAtTime(430, t + 0.05);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.028, t + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.065);
+        o.connect(g); g.connect(actx.destination);
+        o.start(t); o.stop(t + 0.08);
+      }
       function typeClick() {
         var now = performance.now(); if (now - lastClick < 30) return; lastClick = now;   // never overlap
         if (tickAudio) { try { tickAudio.currentTime = 0; tickAudio.volume = TYPING_VOLUME; var pr = tickAudio.play(); if (pr && pr.catch) pr.catch(function () { }); } catch (e) { } return; }
@@ -1658,7 +1830,7 @@
         next.hidden = true; skip.hidden = false;
         var bi = 0, ci = 0, el = null, timer = 0, done = false, cur = document.createElement('span');
         cur.className = 'cursor'; cur.textContent = '\u2588'; box.textContent = '';
-        function finish() { if (done) return; done = true; clearTimeout(timer); stopSound(); skip.hidden = true; next.hidden = false; scr.scrollTop = scr.scrollHeight; }
+        function finish() { if (done) return; done = true; clearTimeout(timer); stopSound(); if (id === 'brief1') stopLandingAudio(700); skip.hidden = true; next.hidden = false; scr.scrollTop = scr.scrollHeight; }
         function nextBlock() {
           if (bi >= blocks.length) return finish();
           el = document.createElement('div'); el.className = 'b-' + blocks[bi].t; el.appendChild(document.createTextNode('')); box.appendChild(el); ci = 0; tick();
@@ -1690,6 +1862,13 @@
       ['brief1', 'brief2'].forEach(function (id) { $(id + 'Skip').addEventListener('click', function () { if (typer) typer.skip(); }); });
       $('brief1Next').addEventListener('click', function () { show('name'); });
       $('brief2Next').addEventListener('click', startGame);
+
+      // Shared interface feedback for the landing buttons, map cards and dialogs.
+      document.addEventListener('click', function (e) {
+        var hit = e.target && e.target.closest ? e.target.closest('button, .site-card, .brief-skip, .brief-go') : null;
+        if (!hit || hit.disabled) return;
+        audioUnlock(); uiClick();
+      }, true);
 
       show('intro');
     })();

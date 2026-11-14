@@ -29,6 +29,15 @@ import {
 } from "./data/drone/script";
 import { ACTIVE_SITE, COMMANDER, PLAYER_NAME } from "./logic/profile";
 import {
+  installUiSounds,
+  playRocket,
+  playUi,
+  startStorm,
+  startTheme,
+  stopRocket,
+  stopStorm,
+} from "./lib/audio";
+import {
   applyDecision,
   dayComplete,
   droneAlerts,
@@ -45,6 +54,19 @@ import "./App.css";
 
 const SAVED_MISSION = loadGame();
 const MEET_GROUP = "Meet the crew";
+const ROCKET_OFFSET_KEY = "marsRocketOffset";
+
+/** The landing page leaves off where its rocket bed was; the intro is 4.5 s. */
+function takeRocketOffset() {
+  try {
+    const raw = window.sessionStorage.getItem(ROCKET_OFFSET_KEY);
+    window.sessionStorage.removeItem(ROCKET_OFFSET_KEY);
+    const value = Number(raw);
+    return Number.isFinite(value) && value > 0 && value < 30 ? value : 0;
+  } catch {
+    return 0;
+  }
+}
 
 const list = (value) => (Array.isArray(value) ? value : []);
 
@@ -117,6 +139,41 @@ export default function App() {
 
   const paused = !["intro", "playing", "cinematic", "sleeping", "waking"].includes(phase);
   const inputEnabled = phase === "playing";
+
+  /* ------------------------------------------------------------- sound
+   *
+   * The landing page hands off a silent film: rocket.mp3 plays while the
+   * intro descends, then the theme crossfades in at touchdown. Saved games
+   * skip straight to the theme. The storm bed follows the story weather.
+   */
+  const introAudio = useRef(false);
+
+  useEffect(() => installUiSounds(), []);
+
+  useEffect(() => {
+    if (SAVED_MISSION) {
+      startTheme();
+      return;
+    }
+    if (introAudio.current) return;
+    introAudio.current = true;
+    playRocket(takeRocketOffset());
+  }, []);
+
+  const handleRocketLanded = useCallback(() => {
+    stopRocket(1400);
+    startTheme();
+  }, []);
+
+  useEffect(() => {
+    const onStage = ["playing", "interaction", "cinematic", "report", "daybreak"].includes(phase);
+    if (weatherLevel === "storm" && onStage) startStorm();
+    else stopStorm(800);
+  }, [weatherLevel, phase]);
+
+  useEffect(() => {
+    if (droneOpen) playUi("open");
+  }, [droneOpen]);
 
   const showToast = useCallback((message, kind = "success") => {
     setToastKind(kind);
@@ -481,6 +538,7 @@ export default function App() {
           onGuideRect={handleGuideRect}
           onCrewCommandDone={handleCrewCommandDone}
           onInteract={handleInteract}
+          onRocketLanded={handleRocketLanded}
           onIntroComplete={handleIntroComplete}
           onCinematicDone={handleCinematicDone}
         />
