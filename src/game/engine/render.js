@@ -1,0 +1,404 @@
+import { WORLD, depthScale } from "../world";
+import { isEntityBlocking } from "./entities";
+
+// Pre-scale a panorama to canvas height once, in both orientations.
+function buildTile(image, width, height, mirrored = false) {
+  const tile = document.createElement("canvas");
+  tile.width = Math.ceil(width);
+  tile.height = height;
+  const g = tile.getContext("2d");
+  if (mirrored) {
+    g.translate(width, 0);
+    g.scale(-1, 1);
+  }
+  g.drawImage(image, 0, 0, width, height);
+  return tile;
+}
+
+export function buildPanorama(image) {
+  const width = image.width * (WORLD.height / image.height);
+  return {
+    width,
+    normal: buildTile(image, width, WORLD.height),
+    mirrored: buildTile(image, width, WORLD.height, true),
+  };
+}
+
+export function drawPanorama(ctx, panorama, cameraLeft) {
+  const { width, normal, mirrored } = panorama;
+  const first = Math.floor(cameraLeft / width);
+  const last = Math.floor((cameraLeft + WORLD.width) / width);
+
+  for (let i = first; i <= last; i += 1) {
+    const x = i * width - cameraLeft;
+    // Odd tiles are mirrored so the panorama loops without a hard seam.
+    const tile = ((i % 2) + 2) % 2 === 1 ? mirrored : normal;
+    // +1px overlap hides sub-pixel gaps between tiles.
+    ctx.drawImage(tile, x, 0, width + 1, WORLD.height);
+  }
+}
+
+/**
+ * Resolves the sprite frame and scale for one entity copy.
+ * `y` is always the ground contact line.
+ */
+export function entityMetrics(entity, view, image) {
+  const sprite = entity.sprite ?? {};
+  let frame = view?.frame ?? sprite.frame ?? {
+    x: 0,
+    y: 0,
+    w: image.width,
+    h: image.height,
+  };
+
+  // Sliced art can leave hairline seams between neighbours; drawing a couple
+  // of source pixels of bleed on each side closes them.
+  const bleed = view?.frame ? 0 : sprite.bleed ?? 0;
+  if (bleed > 0) {
+    const left = Math.max(0, frame.x - bleed);
+    const right = Math.min(image.width, frame.x + frame.w + bleed);
+    frame = { x: left, y: frame.y, w: right - left, h: frame.h };
+  }
+
+  const scale =
+    (entity.perspective === false ? 1 : depthScale(entity.y)) *
+    entity.scale *
+    (view?.scaleMul ?? 1);
+  return { frame, scale, w: frame.w * scale, h: frame.h * scale };
+}
+
+/** Screen-independent top edge of an entity, in screen space (add camera). */
+export function entityTop(entity, images) {
+  const view = entity.behavior?.getView?.();
+  const src = view?.src ?? entity.sprite?.src;
+  const image = images.get(src);
+  if (!image) return null;
+
+  const { h } = entityMetrics(entity, view, image);
+  const anchor = view?.anchor ?? entity.anchor ?? 1;
+  return entity.y + (view?.offsetY ?? 0) - h * anchor;
+}
+
+/** Draws one entity copy (screenX already world-anchored). */
+export function drawEntity(ctx, copy, images) {
+  const { entity, screenX, flip } = copy;
+  const view = entity.behavior?.getView?.();
+  if (view?.hidden) return;
+
+  const src = view?.src ?? entity.sprite?.src;
+  const image = images.get(src);
+  if (!image) return;
+
+  const facingLeft = view?.flip ?? flip;
+
+  const { frame, w, h } = entityMetrics(entity, view, image);
+  const anchor = view?.anchor ?? entity.anchor ?? 1;
+  const top = entity.y + (view?.offsetY ?? 0) - h * anchor;
+  const shadowK = Math.max(0, view?.shadowK ?? 1);
+  // Unbuilt stations rise out of the ground: reveal a growing bottom slice.
+  const reveal = Math.max(0, Math.min(1, view?.reveal ?? 1));
+
+  if (entity.shadow) {
+    const radius = entity.footR ?? Math.max(10, w * 0.3);
+    ctx.save();
+    ctx.globalAlpha = 0.26 * shadowK;
+    ctx.fillStyle = "#160b12";
+    ctx.beginPath();
+    ctx.ellipse(
+      screenX,
+      entity.y - 2,
+      radius * 0.95 * shadowK + 3,
+      Math.max(3, radius * 0.26 * shadowK + 1),
+      0,
+      0,
+      Math.PI * 2,
+    );
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+
+  if (reveal < 0.999) {
+    ctx.beginPath();
+    ctx.rect(screenX - w, entity.y - h * reveal - 2, w * 2, h * reveal + 3);
+    ctx.clip();
+  }
+
+  if (facingLeft) {
+    ctx.translate(screenX, top);
+    ctx.scale(-1, 1);
+    ctx.drawImage(image, frame.x, frame.y, frame.w, frame.h, -w / 2, 0, w, h);
+  } else {
+    ctx.drawImage(image, frame.x, frame.y, frame.w, frame.h, screenX - w / 2, top, w, h);
+  }
+
+  ctx.restore();
+
+  // Construction dust while the station is still climbing out of the sand.
+  if (view?.building) {
+    const rise = entity.y - h * reveal;
+    ctx.save();
+    ctx.fillStyle = "rgba(232, 176, 148, 0.55)";
+    for (let i = 0; i < 3; i += 1) {
+      const drift = ((reveal * 40 + i * 11) % 22) - 11;
+      const size = 2 + (i % 2);
+      ctx.fillRect(
+        Math.round(screenX + drift - size / 2),
+        Math.round(entity.y - 2 - (i % 2) * 3),
+        size,
+        size,
+      );
+    }
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = "#ffe1c4";
+    ctx.fillRect(Math.round(screenX - w / 2), Math.round(rise), Math.round(w), 2);
+    ctx.restore();
+  }
+}
+
+// Small "E" bubble over the entity Layla can fix or inspect.
+export function drawPrompt(ctx, target, images, cameraLeft) {
+  const top = entityTop(target.entity, images);
+  if (top === null) return;
+
+  const x = target.worldX - cameraLeft;
+  const y = top - 16;
+  const interaction = target.entity.interactive;
+  const label = typeof interaction === "object" ? interaction.label : null;
+
+  ctx.save();
+  ctx.globalAlpha = 0.92;
+  ctx.fillStyle = "rgba(20, 10, 16, 0.78)";
+  ctx.strokeStyle = "rgba(255, 217, 224, 0.6)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(x, y, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#ffd9e0";
+  ctx.font = "600 11px ui-monospace, monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("E", x, y + 0.5);
+
+  if (label) {
+    ctx.font = "600 10px ui-monospace, monospace";
+    const padding = 8;
+    const textWidth = ctx.measureText(label).width;
+    const boxWidth = textWidth + padding * 2;
+    const boxHeight = 22;
+    let boxX = x + 15;
+
+    // Keep the label inside the canvas when the entity is near the edge.
+    if (boxX + boxWidth > WORLD.width - 8) boxX = x - 15 - boxWidth;
+
+    ctx.fillStyle = "rgba(20, 10, 16, 0.82)";
+    ctx.strokeStyle = "rgba(255, 217, 224, 0.28)";
+    ctx.beginPath();
+    ctx.roundRect(boxX, y - boxHeight / 2, boxWidth, boxHeight, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#ffd9e0";
+    ctx.textAlign = "left";
+    ctx.fillText(label, boxX + padding, y + 0.5);
+  }
+
+  ctx.restore();
+}
+
+/**
+ * Chunky pixel status bar pinned above an outpost station or crew member.
+ * No numbers: eight blocks and a tiny glyph, readable at a glance.
+ */
+const GLYPHS = {
+  bolt: ["..###..", "..##...", ".###...", "..####.", "...###.", "..##...", ".##...."],
+  drop: ["...#...", "..###..", ".#####.", ".#####.", ".#####.", "..###..", "...#..."],
+  leaf: ["....##.", "..####.", ".#####.", ".#####.", "..###..", "...#...", "...#..."],
+  wrench: [".##..#.", "###.##.", ".####..", "..##...", ".###...", "###.##.", ".#...#."],
+  home: ["...#...", "..###..", ".#####.", "#######", "##...##", "##...##", "#######"],
+  flask: ["..###..", "...#...", "..###..", ".#####.", ".#####.", ".#####.", ".#####."],
+  heart: [".##.##.", "#######", "#######", ".#####.", "..###..", "...#...", "......."],
+};
+
+function drawGlyph(ctx, glyph, x, y, color) {
+  ctx.fillStyle = color;
+  glyph.forEach((row, ry) => {
+    for (let rx = 0; rx < row.length; rx += 1) {
+      if (row[rx] === "#") ctx.fillRect(x + rx, y + ry, 1, 1);
+    }
+  });
+}
+
+export function drawEntityBar(ctx, copy, status, images) {
+  const { entity, screenX } = copy;
+  const top = entityTop(entity, images);
+  if (top === null) return;
+
+  const segments = 8;
+  const segW = 4;
+  const gap = 1;
+  const barW = segments * (segW + gap) - gap;
+  const iconW = 7;
+  const pad = 3;
+  const boxW = iconW + 4 + barW + pad * 2;
+  const boxH = 15;
+  const x = Math.round(screenX - boxW / 2);
+  const y = Math.round(top - boxH - 26);
+  const filled = Math.round((Math.max(0, Math.min(100, status.value)) / 100) * segments);
+
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+
+  ctx.fillStyle = "rgba(18, 10, 20, 0.78)";
+  ctx.strokeStyle = "rgba(255, 232, 214, 0.24)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(x + 0.5, y + 0.5, boxW - 1, boxH - 1, 3);
+  ctx.fill();
+  ctx.stroke();
+
+  drawGlyph(ctx, GLYPHS[status.icon] ?? GLYPHS.bolt, x + pad, y + 4, status.tint);
+
+  const barX = x + pad + iconW + 4;
+  const barY = y + 5;
+  for (let i = 0; i < segments; i += 1) {
+    ctx.fillStyle =
+      i < filled ? status.tint : "rgba(255, 232, 214, 0.16)";
+    ctx.fillRect(barX + i * (segW + gap), barY, segW, 5);
+  }
+
+  ctx.restore();
+}
+
+/**
+ * Bouncing gold pin over an unfinished task. Kids can read it from across
+ * the outpost, and clicking it walks Layla over.
+ */
+export function drawQuestMarker(ctx, copy, images, time) {
+  const { entity, screenX } = copy;
+  const top = entityTop(entity, images);
+  if (top === null) return;
+
+  const bob = Math.sin(time * 3.6) * 2.5;
+  const x = Math.round(screenX);
+  const y = Math.round(top - 52 + bob);
+
+  ctx.save();
+
+  // Soft halo so the pin pops against the red dust.
+  ctx.fillStyle = "rgba(255, 209, 102, 0.16)";
+  ctx.beginPath();
+  ctx.arc(x, y + 1, 12, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Pin body + pointer.
+  ctx.fillStyle = "#ffd166";
+  ctx.strokeStyle = "rgba(46, 24, 10, 0.85)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(x - 9, y - 10, 18, 18, 5);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(x - 5, y + 7);
+  ctx.lineTo(x + 5, y + 7);
+  ctx.lineTo(x, y + 13);
+  ctx.closePath();
+  ctx.fill();
+
+  // Exclamation mark.
+  ctx.fillStyle = "#3a2410";
+  ctx.fillRect(x - 1.5, y - 6, 3, 7);
+  ctx.fillRect(x - 1.5, y + 3, 3, 3);
+
+  ctx.restore();
+}
+
+/**
+ * F2 overlay: footprints, anchors, sort lines, world-period boundaries and
+ * entity ids — everything needed to tune a newly added asset in seconds.
+ */
+export function drawDebugOverlay(ctx, copies, images, cameraLeft, period, player, entityCount) {
+  ctx.save();
+  ctx.font = "10px ui-monospace, monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+
+  const firstIndex = Math.floor(cameraLeft / period) - 1;
+  for (let i = firstIndex; i < firstIndex + 3; i += 1) {
+    const x = i * period - cameraLeft;
+    if (x < -40 || x > WORLD.width + 40) continue;
+
+    ctx.strokeStyle = "rgba(120, 255, 220, 0.45)";
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, WORLD.height);
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(120, 255, 220, 0.8)";
+    ctx.fillText(`period ${i}`, x, WORLD.height - 8);
+  }
+  ctx.setLineDash([]);
+
+  for (const copy of copies) {
+    const { entity, screenX } = copy;
+    const blocking = isEntityBlocking(entity);
+
+    if (entity.footR) {
+      const ry = Math.max(8, entity.footR * 0.28);
+      ctx.beginPath();
+      ctx.ellipse(screenX, entity.y, entity.footR, ry, 0, 0, Math.PI * 2);
+      ctx.fillStyle = blocking ? "rgba(255, 90, 120, 0.16)" : "rgba(90, 160, 255, 0.16)";
+      ctx.fill();
+      ctx.strokeStyle = blocking ? "rgba(255, 90, 120, 0.8)" : "rgba(90, 160, 255, 0.8)";
+      ctx.stroke();
+    }
+
+    // Ground anchor.
+    ctx.strokeStyle = "rgba(255, 220, 120, 0.9)";
+    ctx.beginPath();
+    ctx.moveTo(screenX - 5, entity.y);
+    ctx.lineTo(screenX + 5, entity.y);
+    ctx.moveTo(screenX, entity.y - 5);
+    ctx.lineTo(screenX, entity.y + 5);
+    ctx.stroke();
+
+    // Sort line: everything above is drawn earlier (further away).
+    ctx.strokeStyle = "rgba(255, 220, 120, 0.2)";
+    ctx.beginPath();
+    ctx.moveTo(0, entity.y);
+    ctx.lineTo(WORLD.width, entity.y);
+    ctx.stroke();
+
+    const top = entityTop(entity, images) ?? entity.y - 20;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
+    ctx.fillText(`${entity.id} · y${Math.round(entity.y)}`, screenX, top - 4);
+  }
+
+  if (player) {
+    const px = player.x - cameraLeft;
+    ctx.strokeStyle = "rgba(140, 255, 160, 0.9)";
+    ctx.beginPath();
+    ctx.arc(px, player.y, 3, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(140, 255, 160, 0.95)";
+    ctx.fillText(`player ${player.action} · y${Math.round(player.y)}`, px, player.y - 10);
+  }
+
+  // HUD.
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "rgba(10, 6, 12, 0.68)";
+  ctx.fillRect(12, 12, 268, 56);
+  ctx.fillStyle = "#9df5d6";
+  ctx.font = "11px ui-monospace, monospace";
+  ctx.fillText("debug · F2 to hide", 20, 28);
+  ctx.fillText(`camera ${Math.round(cameraLeft)} · period ${Math.round(period)} px`, 20, 44);
+  ctx.fillText(`entities ${entityCount} · on screen ${copies.length}`, 20, 60);
+  ctx.restore();
+}
