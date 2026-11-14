@@ -3,7 +3,7 @@
 <html lang="en" dir="ltr"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Astroberry</title>
+  <title>AstroBarry</title>
   <link id="siteFavicon" rel="icon" type="image/svg+xml" href="/favicon.svg">
   <!-- Google Font (external link) -->
   <link rel="preconnect" href="https://fonts.googleapis.com/">
@@ -71,18 +71,30 @@
       flex: none;
       width: min(1180px, 94vw);
       margin: 0 auto;
-      padding: 12px 0 4px;
+      padding: 10px 0 4px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
+      gap: 13px;
     }
 
     .brand-logo {
       display: block;
-      width: 55px;
-      height: 55px;
+      width: 62px;
+      height: 62px;
       object-fit: contain;
       flex: none;
+      image-rendering: pixelated;
+    }
+
+    .brand-name {
+      font-family: var(--pixel);
+      font-size: clamp(11px, 1.65vw, 16px);
+      line-height: 1.7;
+      letter-spacing: 1px;
+      color: #ffe2a8;
+      text-shadow: 3px 3px 0 #713b2c, 5px 5px 0 rgba(0, 0, 0, 0.45);
+      white-space: nowrap;
     }
 
     .topbar[hidden] {
@@ -1031,7 +1043,8 @@
   <div class="stars" aria-hidden="true"></div>
 
   <header class="topbar" id="siteTopbar">
-    <img class="brand-logo" src="/favicon.svg" alt="Mars Academy logo">
+    <img class="brand-logo" src="/favicon.svg" alt="AstroBarry logo">
+    <span class="brand-name">ASTROBERRY</span>
   </header>
 
   <main>
@@ -1696,11 +1709,27 @@
         };
         nextBlock();
       }
-      document.addEventListener('keydown', function (e) {   // ENTER = finish the typing only
-        if (e.key !== 'Enter' || !document.querySelector('.brief.active')) return;
-        e.preventDefault();   // never presses a button or submits anything
-        if (e.repeat || !typer || Date.now() - startedAt < 400) return;
-        typer.skip();
+      document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        var activeBrief = document.querySelector('.brief.active');
+        if (!activeBrief) return;
+
+        e.preventDefault();
+        if (e.repeat || Date.now() - startedAt < 400) return;
+
+        var skipButton = activeBrief.querySelector('.brief-skip');
+        var continueButton = activeBrief.querySelector('.brief-go');
+
+        // First ENTER: finish the typewriter effect.
+        if (skipButton && !skipButton.hidden) {
+          if (typer) typer.skip();
+          return;
+        }
+
+        // Next ENTER: activate CONTINUE / START MISSION.
+        if (continueButton && !continueButton.hidden) {
+          continueButton.click();
+        }
       });
       ['brief1', 'brief2'].forEach(function (id) { $(id + 'Skip').addEventListener('click', function () { if (typer) typer.skip(); }); });
       $('brief1Next').addEventListener('click', function () { show('name'); });
