@@ -10,7 +10,7 @@ Welcome aboard, space adventurer! This is our legendary game where we are still 
 🔗 Try your luck and play it here: Astroberry Live
 
 🌌 Interactive 3D Mars Globe
-<div align="center"> <iframe src="mars-3d.html" width="100%" height="450px" style="border:2px solid #4a2a9a; border-radius:16px;"></iframe> </div>
+<div align="center">  </div>
 Some nice space views, a gorgeous planet, and fancy-looking buildings with absolutely zero guarantee they won't collapse on the characters' heads.
 
 🦸‍♂️ Heroes Who Have No Clue Where They're Going
