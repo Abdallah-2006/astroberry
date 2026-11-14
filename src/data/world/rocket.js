@@ -25,7 +25,8 @@ export const ROCKET_ENTITIES = [
     scale: 0.75,
     repeat: false,
     mirror: false,
-    blocking: false,
+    blocking: true,
+    footR: 42,
   },
   {
     id: "arrival-rocket",
@@ -48,8 +49,8 @@ export const ROCKET_ENTITIES = [
     scale: 0.5,
     repeat: false,
     mirror: false,
-    blocking: false,
-    footR: 46,
+    blocking: true,
+    footR: 52,
     interactive: {
       kind: "inspect",
       targetId: "rocket",

@@ -2,8 +2,11 @@ import solarPanelUrl from "../../assets/props/solar_panels.png";
 import oxygenStationUrl from "../../assets/props/oxygen_station.png";
 import habitatDomeUrl from "../../assets/props/habitat_dome.png";
 import airlockUrl from "../../assets/props/airlock.png";
-import greenhouseUrl from "../../assets/props/greenhouse.svg";
-import telescopeUrl from "../../assets/props/telescope.svg";
+import greenhouseUrl from "../../assets/props/greenhouse.png";
+import telescopeUrl from "../../assets/props/telescope.png";
+import radarDishUrl from "../../assets/props/radar_dish.png";
+import storageCrateUrl from "../../assets/props/storage_crate.png";
+import oreCrystalUrl from "../../assets/props/ore_crystal.png";
 
 /**
  * Unique outpost stations. `repeat` and `mirror` are off so each interactive
@@ -58,7 +61,8 @@ export const OUTPOST_STATIONS = [
     scale: 1.35,
     repeat: false,
     mirror: false,
-    blocking: false,
+    blocking: true,
+    footR: 38,
     shadow: true,
   },
   {
@@ -79,38 +83,81 @@ export const OUTPOST_STATIONS = [
       label: "Inspect habitat",
     },
   },
-  // Decorative additions: visual-only props with no interaction or story hooks.
+  // Decorative-only props: collision-blocking, but no interaction or story hooks.
+  // Greenhouse sits slightly behind the main station line.
   {
     id: "greenhouse-decor",
     sprite: { src: greenhouseUrl },
-    x: 0.475,
-    y: 484,
-    scale: 0.9,
+    x: 0.372,
+    y: 448,
+    scale: 1.22,
     repeat: false,
     mirror: false,
-    blocking: false,
+    blocking: true,
+    footR: 48,
+    shadow: true,
+  },
+  // Two telescopes remain as light decoration at different depths.
+  {
+    id: "telescope-back-west-decor",
+    sprite: { src: telescopeUrl },
+    x: 0.275,
+    y: 448,
+    scale: 0.58,
+    repeat: false,
+    mirror: false,
+    blocking: true,
+    footR: 20,
     shadow: true,
   },
   {
-    id: "telescope-west-decor",
+    id: "telescope-front-east-decor",
     sprite: { src: telescopeUrl },
-    x: 0.505,
-    y: 484,
-    scale: 0.72,
+    x: 0.615,
+    y: 488,
+    scale: 0.82,
     repeat: false,
     mirror: false,
-    blocking: false,
+    blocking: true,
+    footR: 20,
     shadow: true,
   },
+  // Communications radar beside the lander, to the left of the rocket.
   {
-    id: "telescope-east-decor",
-    sprite: { src: telescopeUrl },
+    id: "landing-radar-decor",
+    sprite: { src: radarDishUrl },
+    x: 0.211,
+    y: 492,
+    scale: 0.78,
+    repeat: false,
+    mirror: false,
+    blocking: true,
+    footR: 24,
+    shadow: true,
+  },
+  // Small outpost details to make use of the wider terrain without crowding stations.
+  {
+    id: "supply-crate-decor",
+    sprite: { src: storageCrateUrl },
     x: 0.535,
-    y: 484,
-    scale: 0.72,
+    y: 490,
+    scale: 0.58,
     repeat: false,
     mirror: false,
-    blocking: false,
+    blocking: true,
+    footR: 18,
+    shadow: true,
+  },
+  {
+    id: "ore-crystal-decor",
+    sprite: { src: oreCrystalUrl },
+    x: 0.665,
+    y: 474,
+    scale: 0.62,
+    repeat: false,
+    mirror: false,
+    blocking: true,
+    footR: 17,
     shadow: true,
   },
 ];

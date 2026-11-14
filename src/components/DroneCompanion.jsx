@@ -38,8 +38,16 @@ export default function DroneCompanion({
     >
       <motion.span
         className="drone-body"
-        animate={{ y: active ? [0, -4, 0] : [0, -2.5, 0] }}
-        transition={{ duration: active ? 1.6 : 3.2, repeat: Infinity, ease: "easeInOut" }}
+        animate={{
+          y: active ? [0, -9, 0, -5, 0] : [0, -6, 0, -3, 0],
+          x: active ? [0, 2, 0, -2, 0] : [0, 1, 0, -1, 0],
+          rotate: active ? [0, 1.2, 0, -1.2, 0] : [0, 0.7, 0, -0.7, 0],
+        }}
+        transition={{
+          duration: active ? 1.65 : 2.25,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
       >
         {sprite ? (
           <img className="drone-sprite" src={sprite} alt="" />

@@ -1,16 +1,9 @@
-import jezeroUrl from "../../assets/world/space.png";
-import meridianiUrl from "../../assets/world/minimalist-flat-design-illustration-of-mars-surface-with-crater-vector.jpg";
+import jezeroUrl from "../../assets/world/jezero_surface.webp";
+import meridianiUrl from "../../assets/world/meridiani_surface.webp";
 
 /**
- * Full-width panorama layers. They tile together with the background, so
- * their art always stays aligned with the terrain.
- *
- * sortY:
- *   null  → always drawn behind the player (sky, ground)
- *   number → y-sorted against entities: a player with a lower y (further
- *            away) is drawn first, so the layer covers them.
- *
- * The landing page picks the site; each site gets its own painted horizon.
+ * Full-width panorama layers selected by the landing-page world choice.
+ * `selectedMap` is resolved in logic/profile.js and passed to getScene().
  */
 export const BACKGROUNDS_BY_MAP = {
   jezero: [{ id: "surface", src: jezeroUrl, sortY: null }],
