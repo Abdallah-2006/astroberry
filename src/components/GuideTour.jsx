@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { motion } from "framer-motion";
 import DroneCompanion from "./DroneCompanion";
 import PixelIcon from "./PixelIcon";
+import { playVoiceStart } from "../lib/audio";
 
 /**
  * PIP's spotlight / character guide.
@@ -31,6 +32,11 @@ export default function GuideTour({ node, worldRect, onRequestWorld, onFinish })
   const [panelBottom, setPanelBottom] = useState(null);
 
   const target = step?.target;
+
+  // PIP's walkie squelch on arrival and on every guide step.
+  useEffect(() => {
+    playVoiceStart();
+  }, [node?.targetId, node?.title, index]);
 
   // Ask the world renderer to focus and measure a character.
   useEffect(() => {

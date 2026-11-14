@@ -14,6 +14,7 @@ What changed, why, and how to test it.
 | `components/GuideTour.jsx` | PIP's spotlight / character guide: fly-to subject, bright cut-out, step card |
 | `components/WeatherLayer.jsx` | Framer Motion weather: storm streaks, dust motes, haze, frost crystals |
 | `components/DronePanel.jsx` | mission, tasks, alerts, decision, sleep |
+| `lib/audio.js` | UI clicks, voice-link chirps, rocket → theme crossfade, storm bed |
 | `tests/systems.test.mjs` | the automated checks below |
 
 ## Rewritten
@@ -79,14 +80,51 @@ choice back so a reload keeps it.
 ## Framed stage
 
 The game is a framed card with breathing room, not a full-bleed window. `.app`
-defines `--stage-pad` (14–30 px) and `.game-shell` is inset by it, so the red
-planet sits inside a visible frame. The header and footer stay `position:
-absolute` over the frame instead of taking layout height, so the stage keeps
-the full viewport minus the margins. The canvas uses `object-fit: cover` on
-landscape windows (with `contain` on phones so the scene is not cropped), and
-`GameCanvas`'s `contentBox()` maps pointer and overlay coordinates through that
-painted box. If you change the fit mode or `--stage-pad`, keep those two in
-sync.
+defines `--stage-pad` (7–14 px, 5–7 px on phones) and `.game-shell` is inset by
+it, so the red planet sits inside a thin visible frame. The header and footer
+stay `position: absolute` over the frame instead of taking layout height, so the
+stage keeps the full viewport minus the margins. The canvas uses `object-fit:
+cover` on landscape windows (with `contain` on phones so the scene is not
+cropped), and `GameCanvas`'s `contentBox()` maps pointer and overlay coordinates
+through that painted box. If you change the fit mode or `--stage-pad`, keep
+those two in sync.
+
+## Sound direction
+
+All game audio goes through `lib/audio.js`; the landing page keeps its own tiny
+director because it is a separate document.
+
+- **Landing sequence.** `Play now` opens the boot screen and starts
+  `countdown-before.mp3` at 0.28. The countdown no longer gates the briefing: a
+  short 1.8 s lead-in, then `brief1` starts typing while the countdown keeps
+  playing quietly underneath and fades out when the briefing closes or is
+  skipped. The name and map screens are silent.
+- **Second briefing.** `brief2` starts `rocket.mp3` and keeps it playing. The
+  current playback position is handed over in `sessionStorage` when **START
+  MISSION** is pressed, so the game resumes the bed for the actual descent
+  instead of restarting it from zero.
+- **Touchdown.** `GameCanvas` reports `onRocketLanded` (the moment the rocket
+  behavior changes to `landed`). The game fades the rocket out and fades
+  `theme.mp3` in, then leaves it looping for the rest of the session.
+- **Storm.** `WeatherLayer` is visual only; `App` starts/fades `storm.mp3` from
+  the resolved weather level.
+- **Mix.** Theme sits at 0.07, rocket at 0.28, storm at 0.2 and typing ticks at
+  0.14, so UI blips and the walkie stay clearly on top.
+- **UI + voice.** A global click listener gives buttons and choices a quiet
+  synth blip. The walkie uses `src/assets/sounds/talkie.mp3` (bundled like the
+  other beds) on **every** transcript beat: bubble mount, every **Next
+  transmission** line, each choice result, and every `GuideTour` step. It is
+  restarted from the top at 0.55 on each beat. `InteractionModal` keys it on the
+  transcript identity plus line index and `GuideTour` on the step index, so a
+  single session re-triggers it per bubble. If the clip is missing or playback
+  is genuinely blocked, a synthesized radio squelch is used instead.
+- **Ducking.** `playVoiceStart()` briefly drops the theme to 35 % for 340 ms
+  before restoring it, so a chirp never fights the music. Starting or stopping
+  a track clears any pending duck timer.
+- **Theme asset.** `src/assets/sounds/theme.mp3` is bundled by
+  `import.meta.glob` and loops for the rest of the session after touchdown.
+  Without the file the game simply stays quiet there and logs one informational
+  message.
 
 ## How to test
 

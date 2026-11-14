@@ -44,6 +44,7 @@ export default function GameCanvas({
   onGuideRect,
   onCrewCommandDone,
   onInteract,
+  onRocketLanded,
   onIntroComplete,
   onCinematicDone,
 }) {
@@ -61,6 +62,7 @@ export default function GameCanvas({
   const onGuideRectRef = useRef(onGuideRect);
   const onCrewCommandDoneRef = useRef(onCrewCommandDone);
   const onInteractRef = useRef(onInteract);
+  const onRocketLandedRef = useRef(onRocketLanded);
   const onIntroCompleteRef = useRef(onIntroComplete);
   const onCinematicDoneRef = useRef(onCinematicDone);
   const startLandedRef = useRef(startLanded);
@@ -78,6 +80,7 @@ export default function GameCanvas({
     onGuideRectRef.current = onGuideRect;
     onCrewCommandDoneRef.current = onCrewCommandDone;
     onInteractRef.current = onInteract;
+    onRocketLandedRef.current = onRocketLanded;
     onIntroCompleteRef.current = onIntroComplete;
     onCinematicDoneRef.current = onCinematicDone;
     buildsRef.current = builds;
@@ -93,6 +96,7 @@ export default function GameCanvas({
     onGuideRect,
     onCrewCommandDone,
     onInteract,
+    onRocketLanded,
     onIntroComplete,
     onCinematicDone,
     builds,
@@ -504,6 +508,7 @@ export default function GameCanvas({
     const updateIntro = (dt) => {
       if (!arrived && rocket?.behavior?.getState?.() === "landed") {
         arrived = true;
+        onRocketLandedRef.current?.();
         startArrival();
       }
 

@@ -1,5 +1,7 @@
 .app {
-  --stage-pad: clamp(14px, 2vw, 30px);
+  /* A light breathing margin around the stage — thinner than the old 14–30px
+   * frame, but still a framed card rather than a full-bleed canvas. */
+  --stage-pad: clamp(7px, 1.1vw, 14px);
   --stage-accent: rgba(255, 217, 224, 0.14);
   position: relative;
   box-sizing: border-box;
@@ -1067,7 +1069,7 @@ kbd {
 
 @media (max-width: 760px) {
   .app {
-    --stage-pad: 12px;
+    --stage-pad: 7px;
   }
 
   .app-header {
@@ -1153,7 +1155,7 @@ kbd {
 
 @media (max-width: 640px) {
   .app {
-    --stage-pad: 8px;
+    --stage-pad: 5px;
   }
 
   .app-header {
