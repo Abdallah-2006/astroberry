@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="src/assets/LOGO.png" width="160" alt="Astroberry Logo"/>
+  <!-- <img src="src/assets/LOGO.png" width="160" alt="Astroberry Logo"/> -->
 </p>
 
-# 🍓 Astroberry: The Dangerous Space Adventure (Logic Still Under Construction!) 🚀
+# Astroberry: The Dangerous Space Adventure (Logic Still Under Construction!) 🚀
 
 Welcome aboard, space adventurer! This is our legendary game where we are still messing around with the code, but it looks so cool from the outside that we just had to show it off before it breaks completely!
 
