@@ -2,6 +2,8 @@ import solarPanelUrl from "../../assets/props/solar_panels.png";
 import oxygenStationUrl from "../../assets/props/oxygen_station.png";
 import habitatDomeUrl from "../../assets/props/habitat_dome.png";
 import airlockUrl from "../../assets/props/airlock.png";
+import greenhouseUrl from "../../assets/props/greenhouse.svg";
+import telescopeUrl from "../../assets/props/telescope.svg";
 
 /**
  * Unique outpost stations. `repeat` and `mirror` are off so each interactive
@@ -15,7 +17,7 @@ export const OUTPOST_STATIONS = [
   {
     id: "power-junction",
     sprite: { src: solarPanelUrl },
-    x: 0.2975,
+    x: 0.3030,
     y: 400,
     scale: 1.15,
     repeat: false,
@@ -33,7 +35,7 @@ export const OUTPOST_STATIONS = [
   {
     id: "life-support",
     sprite: { src: oxygenStationUrl },
-    x: 0.3544,
+    x: 0.3560,
     y: 484,
     scale: 1.15,
     repeat: false,
@@ -51,7 +53,7 @@ export const OUTPOST_STATIONS = [
   {
     id: "airlock",
     sprite: { src: airlockUrl },
-    x: 0.46,
+    x: 0.4450,
     y: 484,
     scale: 1.35,
     repeat: false,
@@ -62,7 +64,7 @@ export const OUTPOST_STATIONS = [
   {
     id: "habitat-dome",
     sprite: { src: habitatDomeUrl },
-    x: 0.4123,
+    x: 0.4070,
     y: 400,
     scale: 1.25,
     repeat: false,
@@ -76,5 +78,39 @@ export const OUTPOST_STATIONS = [
       targetId: "habitat",
       label: "Inspect habitat",
     },
+  },
+  // Decorative additions: visual-only props with no interaction or story hooks.
+  {
+    id: "greenhouse-decor",
+    sprite: { src: greenhouseUrl },
+    x: 0.475,
+    y: 484,
+    scale: 0.9,
+    repeat: false,
+    mirror: false,
+    blocking: false,
+    shadow: true,
+  },
+  {
+    id: "telescope-west-decor",
+    sprite: { src: telescopeUrl },
+    x: 0.505,
+    y: 484,
+    scale: 0.72,
+    repeat: false,
+    mirror: false,
+    blocking: false,
+    shadow: true,
+  },
+  {
+    id: "telescope-east-decor",
+    sprite: { src: telescopeUrl },
+    x: 0.535,
+    y: 484,
+    scale: 0.72,
+    repeat: false,
+    mirror: false,
+    blocking: false,
+    shadow: true,
   },
 ];

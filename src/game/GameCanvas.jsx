@@ -6,7 +6,7 @@ import { createPlayer, drawPlayer, updatePlayer, PLAYER_SHEET } from "./player";
 import { findInteractable } from "./interaction";
 import { WORLD } from "./world";
 import { getScene } from "../data/world/scene";
-import { ACTIVE_SITE, COMMANDER } from "../logic/profile";
+import { ACTIVE_SITE, COMMANDER, PLAYER_NAME } from "../logic/profile";
 import { collectSources, loadImage, loadImages } from "./engine/assets";
 import {
   isEntityInteractive,
@@ -403,14 +403,15 @@ export default function GameCanvas({
         const laylaX = player.x - cameraLeft;
         const laylaY = player.y - 82;
         ctx.save();
-        ctx.font = 'bold 15px "Press Start 2P", monospace';
+        ctx.font = 'bold 10px "Press Start 2P", monospace';
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.lineWidth = 4;
         ctx.strokeStyle = "#171323";
         ctx.fillStyle = "#fff2b8";
-        ctx.strokeText("LAYLA", laylaX, laylaY);
-        ctx.fillText("LAYLA", laylaX, laylaY);
+        const playerLabel = (PLAYER_NAME || "LAYLA").toUpperCase();
+        ctx.strokeText(playerLabel, laylaX, laylaY);
+        ctx.fillText(playerLabel, laylaX, laylaY);
         ctx.restore();
       }
 
@@ -422,7 +423,7 @@ export default function GameCanvas({
         const scale = Math.max(0.82, Math.min(1, copy.entity.y / 492));
         const labelY = copy.entity.y - 78 * scale;
         ctx.save();
-        ctx.font = `bold ${Math.round(15 * scale)}px "Press Start 2P", monospace`;
+        ctx.font = `bold ${Math.round(10 * scale)}px "Press Start 2P", monospace`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.lineWidth = 4;
@@ -865,7 +866,7 @@ export default function GameCanvas({
         className="game-canvas"
         aria-label="Mars surface. Move with WASD or arrows, Space to jump, E to inspect, or click a marked spot to walk there. F2 for debug."
       />
-      <span className="game-badge">Layla · {COMMANDER} · Surface EVA</span>
+      <span className="game-badge">{COMMANDER} · Surface EVA</span>
     </div>
   );
 }
